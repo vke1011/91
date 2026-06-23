@@ -1,8 +1,10 @@
-import { Suspense, lazy } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Suspense, lazy, useEffect, type ReactNode } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { SkyStarfield } from "@/components/SkyStarfield";
+import { AdminLayout } from "@/admin/AdminLayout";
 import { RequireAuth } from "@/admin/RequireAuth";
 import { RequireAdmin } from "@/admin/RequireAdmin";
+import { rememberVideoReturnPath, routeToPath } from "@/lib/videoReturnPath";
 
 const HomePage = lazy(() => import("@/pages/HomePage"));
 const ListingPage = lazy(() => import("@/pages/ListingPage"));
@@ -12,11 +14,6 @@ const VideoDetailPage = lazy(() => import("@/pages/VideoDetailPage"));
 
 const LoginPage = lazy(() =>
   import("@/admin/LoginPage").then((module) => ({ default: module.LoginPage }))
-);
-const AdminLayout = lazy(() =>
-  import("@/admin/AdminLayout").then((module) => ({
-    default: module.AdminLayout,
-  }))
 );
 const DrivesPage = lazy(() =>
   import("@/admin/DrivesPage").then((module) => ({ default: module.DrivesPage }))
@@ -39,60 +36,134 @@ const UsersPage = lazy(() =>
   import("@/admin/UsersPage").then((module) => ({ default: module.UsersPage }))
 );
 
+function PageSuspense({ children }: { children: ReactNode }) {
+  return <Suspense fallback={null}>{children}</Suspense>;
+}
+
+function VideoReturnPathRecorder() {
+  const location = useLocation();
+
+  useEffect(() => {
+    rememberVideoReturnPath(routeToPath(location));
+  }, [location.pathname, location.search, location.hash]);
+
+  return null;
+}
+
 export default function App() {
   return (
     <>
       {/* 星空蓝主题的固定位置星星层，仅在 data-theme="sky" 下可见 */}
       <SkyStarfield />
-      <Suspense fallback={null}>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
+      <VideoReturnPathRecorder />
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            <PageSuspense>
+              <LoginPage />
+            </PageSuspense>
+          }
+        />
 
-          {/* 主站需要登录 */}
-          <Route
-            path="/"
-            element={
-              <RequireAuth>
+        {/* 主站需要登录 */}
+        <Route
+          path="/"
+          element={
+            <RequireAuth>
+              <PageSuspense>
                 <HomePage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/list"
-            element={
-              <RequireAuth>
+              </PageSuspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/list"
+          element={
+            <RequireAuth>
+              <PageSuspense>
                 <ListingPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/shorts"
-            element={
-              <RequireAuth>
+              </PageSuspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/shorts"
+          element={
+            <RequireAuth>
+              <PageSuspense>
                 <ShortsPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/upload"
-            element={
-              <RequireAuth>
+              </PageSuspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/upload"
+          element={
+            <RequireAuth>
+              <PageSuspense>
                 <UploadPage />
-              </RequireAuth>
+              </PageSuspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/video/:id"
+          element={
+            <RequireAuth>
+              <PageSuspense>
+                <VideoDetailPage />
+              </PageSuspense>
+            </RequireAuth>
+          }
+        />
+
+        {/* 管理后台也需要登录 */}
+        <Route
+          path="/admin"
+          element={
+            <RequireAuth>
+              <AdminLayout />
+            </RequireAuth>
+          }
+        >
+          <Route index element={<Navigate to="/admin/drives" replace />} />
+          <Route
+            path="drives"
+            element={
+              <PageSuspense>
+                <DrivesPage />
+              </PageSuspense>
             }
           />
           <Route
-            path="/video/:id"
+            path="crawlers"
             element={
-              <RequireAuth>
-                <VideoDetailPage />
-              </RequireAuth>
+              <PageSuspense>
+                <CrawlersPage />
+              </PageSuspense>
+            }
+          />
+          <Route
+            path="videos"
+            element={
+              <PageSuspense>
+                <VideosPage />
+              </PageSuspense>
+            }
+          />
+          <Route
+            path="tags"
+            element={
+              <PageSuspense>
+                <TagsPage />
+              </PageSuspense>
             }
           />
 
           {/* 管理后台需要管理员权限 */}
           <Route
-            path="/admin"
+            path="theme"
             element={
               <RequireAuth>
                 <RequireAdmin>
@@ -110,9 +181,8 @@ export default function App() {
             <Route path="users" element={<UsersPage />} />
           </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </>
   );
 }
